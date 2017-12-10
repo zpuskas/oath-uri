@@ -1,0 +1,11 @@
+Copyright (C) 2017 Zoltan Puskas.  Licensed under the GPLv3+.
+
+Each component of the OATH URI generator has its own license, see COPYING in
+each sub-directory.  In particular:
+
+  * liboathuri: Licensed under the LGPLv2.1+.
+
+  * oathuri: Licensed under the GPLv3.0+.
+
+All other files without any other explicit notice that were written as
+part of this project are intended to be licensed under the GPLv3.0+.
