@@ -41,12 +41,26 @@ typedef enum
     OATHURI_INVALID_DIGITS = -2,
 } oathuri_rc;
 
+/**
+ * oathuri_hash:
+ * @OATHURI_SHA1: Use the SHA1 algorithm for OTP generation (default).
+ * @OATHURI_SHA256: Use the SHA256 algorithm for OTP generation.
+ * @OATHURI_SHA512: Use the SHA512 algorithm for OTP generation.
+ */
+typedef enum
+{
+    OATHURI_SHA1 = 0,
+    OATHURI_SHA256 = 1,
+    OATHURI_SHA512 = 2,
+} oathuri_hash;
+
 extern int
 oathuri_totp_generate(const char* secret,
             const char* account_name,
             const char* issuer,
             unsigned digits,
             unsigned period,
+            oathuri_hash algorithm,
             char* key_uri);
 
 extern int
@@ -55,6 +69,7 @@ oathuri_hotp_generate(const char* secret,
             const char* issuer,
             unsigned digits,
             uint64_t counter,
+            oathuri_hash algorithm,
             char* key_uri);
 
 # ifdef __cplusplus
