@@ -20,6 +20,12 @@
 
 #include "oathuri.h"
 
+#include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <curl/curl.h>
+
 /*
  * # OATH Key URI format
  *
@@ -95,9 +101,20 @@
 /* URI protocol prefix */
 static const char OATHURI_PROTOCOL[] = "otpauth://";
 
-/* Type definitions for different OPT key types */
-static const char OATHURI_TYPE_TOTP[] = "totp";
-static const char OATHURI_TYPE_HOTP[] = "hotp";
+/* Type string definitions for different OPT key types */
+static const char OATHURI_TYPE_TOTP[] = "totp/";
+static const char OATHURI_TYPE_HOTP[] = "hotp/";
+
+/* Key parameter string definitions */
+static const char OATHURI_PARAM_SECRET[] = "secret=";
+static const char OATHURI_PARAM_ISSUER[] = "issuer=";
+static const char OATHURI_PARAM_ALGO[] = "algorithm=";
+static const char OATHURI_PARAM_DIGITS[] = "digits=";
+static const char OATHURI_PARAM_COUNTER[] = "counter=";
+static const char OATHURI_PARAM_PERIOD[] = "preiod=";
+
+/* Algorithms, can be addressed with `oathuri_hash` */
+static const char* OATHURI_HASH[] = { "SHA1", "SHA256", "SHA512" };
 
 /**
  * oathuri_totp_generate:
@@ -115,7 +132,7 @@ static const char OATHURI_TYPE_HOTP[] = "hotp";
  * google-authenticator.
  *
  * The system parameter @digits tells how many digits the OTP will consists of.
- * Currently accepted values are 6, 7, and 8
+ * Currently accepted values are 6, 7, and 8. If 0 is specified
  *
  * The system parameter @period corresponds to the time period setting in
  * oath-toolkit and describes the time window in seconds for each OTP.
@@ -138,7 +155,94 @@ oathuri_totp_generate(const char* secret,
             oathuri_hash algorithm,
             char* key_uri)
 {
-    return 0;
+    char* pos = NULL;
+    CURL *curl = NULL;
+    char* encoded_data = NULL;
+    int exit_code = OATHURI_OK;
+
+    /* Account name, issuer and URI buffer are required to be non zero */
+    if (NULL == account_name || NULL == issuer || NULL == key_uri) {
+        return OATHURI_NULL_PARAMETER;
+    }
+
+    /* Unless zero is specified for the default 6 digits, check the value */
+    if (digits && (digits < 6 || digits > 8 )) {
+        return OATHURI_INVALID_DIGITS;
+    }
+
+    /* We need curl to perform URI string encoding */
+    if (curl_global_init(CURL_GLOBAL_ALL)) {
+        return OATHURI_CURL_FAILURE;
+    }
+    curl = curl_easy_init();
+    if(!curl) {
+        return OATHURI_CURL_FAILURE;
+    }
+
+    /* Construct the URI */
+    /* First create the protocol header */
+    pos = stpncpy(key_uri, OATHURI_PROTOCOL, sizeof(OATHURI_PROTOCOL));
+    pos = stpncpy(pos, OATHURI_TYPE_TOTP, sizeof(OATHURI_TYPE_TOTP));
+
+    /* Add LABEL with issuer for backward compatibility */
+    encoded_data = curl_easy_escape(curl, issuer, 0);
+    if(!encoded_data) {
+        exit_code = OATHURI_CURL_FAILURE;
+        goto exit;
+    }
+    pos = stpncpy(pos, encoded_data, strlen(encoded_data) + 1);
+    curl_free(encoded_data);
+    *pos++ = ':';   /* issuer/account separator */
+    encoded_data = curl_easy_escape(curl, account_name, 0);
+    if(!encoded_data) {
+        exit_code = OATHURI_CURL_FAILURE;
+        goto exit;
+    }
+    pos = stpncpy(pos, encoded_data, strlen(encoded_data) + 1);
+    curl_free(encoded_data);
+
+    /* Add secret */
+    *pos++ = '?';
+    pos = stpncpy(pos, OATHURI_PARAM_SECRET, sizeof(OATHURI_PARAM_SECRET));
+    pos = stpncpy(pos, secret, strlen(secret) + 1);
+
+    /* Add issuer as it's recommended for newer applications */
+    *pos++ = '&';
+    pos = stpncpy(pos, OATHURI_PARAM_ISSUER, sizeof(OATHURI_PARAM_SECRET));
+    encoded_data = curl_easy_escape(curl, issuer, 0);
+    if(!encoded_data) {
+        exit_code = OATHURI_CURL_FAILURE;
+        goto exit;
+    }
+    pos = stpncpy(pos, encoded_data, strlen(encoded_data) + 1);
+    curl_free(encoded_data);
+
+    if (algorithm) {
+        *pos++ = '&';
+        pos = stpncpy(pos, OATHURI_PARAM_ALGO, sizeof(OATHURI_PARAM_ALGO));
+        pos = stpncpy(pos, OATHURI_HASH[algorithm], strlen(OATHURI_HASH[algorithm]) + 1);
+    }
+
+    if (digits) {
+        char digit_string[2] = {0};
+        snprintf(digit_string, sizeof(digit_string), "%u", digits);
+        *pos++ = '&';
+        pos = stpncpy(pos, OATHURI_PARAM_DIGITS, sizeof(OATHURI_PARAM_DIGITS));
+        pos = stpncpy(pos, digit_string, sizeof(digit_string));
+    }
+
+    if (period) {
+        char period_string[32] = {0};
+        snprintf(period_string, sizeof(period_string), "%u", period);
+        *pos++ = '&';
+        pos = stpncpy(pos, OATHURI_PARAM_PERIOD, sizeof(OATHURI_PARAM_PERIOD));
+        pos = stpncpy(pos, period_string, strlen(period_string) + 1 );
+    }
+    *pos++ = '\0';
+
+exit:
+    curl_easy_cleanup(curl);
+    return exit_code;
 }
 
 /**
@@ -176,5 +280,92 @@ oathuri_hotp_generate(const char* secret,
             oathuri_hash algorithm,
             char* key_uri)
 {
-    return 0;
+    char* pos = NULL;
+    CURL *curl = NULL;
+    char* encoded_data = NULL;
+    int exit_code = OATHURI_OK;
+
+    /* Account name, issuer and URI buffer are required to be non zero */
+    if (NULL == account_name || NULL == issuer || NULL == key_uri) {
+        return OATHURI_NULL_PARAMETER;
+    }
+
+    /* Unless zero is specified for the default 6 digits, check the value */
+    if (digits && (digits < 6 || digits > 8 )) {
+        return OATHURI_INVALID_DIGITS;
+    }
+
+    /* We need curl to perform URI string encoding */
+    if (curl_global_init(CURL_GLOBAL_ALL)) {
+        return OATHURI_CURL_FAILURE;
+    }
+    curl = curl_easy_init();
+    if(!curl) {
+        return OATHURI_CURL_FAILURE;
+    }
+
+    /* Construct the URI */
+    /* First create the protocol header */
+    pos = stpncpy(key_uri, OATHURI_PROTOCOL, sizeof(OATHURI_PROTOCOL));
+    pos = stpncpy(pos, OATHURI_TYPE_HOTP, sizeof(OATHURI_TYPE_TOTP));
+
+    /* Add LABEL with issuer for backward compatibility */
+    encoded_data = curl_easy_escape(curl, issuer, 0);
+    if(!encoded_data) {
+        exit_code = OATHURI_CURL_FAILURE;
+        goto exit;
+    }
+    pos = stpncpy(pos, encoded_data, strlen(encoded_data) + 1);
+    curl_free(encoded_data);
+    *pos++ = ':';   /* issuer/account separator */
+    encoded_data = curl_easy_escape(curl, account_name, 0);
+    if(!encoded_data) {
+        exit_code = OATHURI_CURL_FAILURE;
+        goto exit;
+    }
+    pos = stpncpy(pos, encoded_data, strlen(encoded_data) + 1);
+    curl_free(encoded_data);
+
+    /* Add secret */
+    *pos++ = '?';
+    pos = stpncpy(pos, OATHURI_PARAM_SECRET, sizeof(OATHURI_PARAM_SECRET));
+    pos = stpncpy(pos, secret, strlen(secret) + 1);
+
+    /* Add issuer as it's recommended for newer applications */
+    *pos++ = '&';
+    pos = stpncpy(pos, OATHURI_PARAM_ISSUER, sizeof(OATHURI_PARAM_SECRET));
+    encoded_data = curl_easy_escape(curl, issuer, 0);
+    if(!encoded_data) {
+        exit_code = OATHURI_CURL_FAILURE;
+        goto exit;
+    }
+    pos = stpncpy(pos, encoded_data, strlen(encoded_data) + 1);
+    curl_free(encoded_data);
+
+    {
+        char counter_string[32] = {0};
+        snprintf(counter_string, sizeof(counter_string), "%ld", counter);
+        *pos++ = '&';
+        pos = stpncpy(pos, OATHURI_PARAM_COUNTER, sizeof(OATHURI_PARAM_COUNTER));
+        pos = stpncpy(pos, counter_string, strlen(counter_string) + 1);
+    }
+
+    if (algorithm) {
+        *pos++ = '&';
+        pos = stpncpy(pos, OATHURI_PARAM_ALGO, sizeof(OATHURI_PARAM_ALGO));
+        pos = stpncpy(pos, OATHURI_HASH[algorithm], strlen(OATHURI_HASH[algorithm]) + 1);
+    }
+
+    if (digits) {
+        char digit_string[2] = {0};
+        snprintf(digit_string, sizeof(digit_string), "%u", digits);
+        *pos++ = '&';
+        pos = stpncpy(pos, OATHURI_PARAM_DIGITS, sizeof(OATHURI_PARAM_DIGITS));
+        pos = stpncpy(pos, digit_string, sizeof(digit_string));
+    }
+    *pos++ = '\0';
+
+exit:
+    curl_easy_cleanup(curl);
+    return exit_code;
 }

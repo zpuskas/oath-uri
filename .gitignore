@@ -20,10 +20,10 @@
 *.lo
 
 # Shared objects (inc. Windows DLLs)
-# *.dll
-# *.so
-# *.so.*
-# *.dylib
+*.dll
+*.so
+*.so.*
+*.dylib
 
 # Executables
 *.exe
@@ -43,3 +43,6 @@ install_manifest.txt
 # Output directories
 bin
 lib
+
+# Ctags file
+tags

@@ -24,6 +24,7 @@ PROJECT(
     DESCRIPTION "Oath Key URI generator library and CLI"
 )
 
+## CMake settings
 SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 SET(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 
@@ -35,10 +36,14 @@ IF(NOT CMAKE_BUILD_TYPE)
     SET(CMAKE_BUILD_TYPE "Release")    
 ENDIF(NOT CMAKE_BUILD_TYPE)
 
+## Compiler settings
+FIND_PACKAGE(CURL REQUIRED)
+
 # Add -Werror once implementation is beyond skeleton phase
 ADD_DEFINITIONS(-std=c99 -pedantic -fsigned-char -freg-struct-return
                 -Wall -W -Wshadow -Wstrict-prototypes -Wpointer-arith
                 -Wcast-qual -Winline)
+INCLUDE_DIRECTORIES ( liboathuri ${CURL_INCLUDE_DIRS} )
 
 ## Library target
 ADD_LIBRARY ( oathuri-lib SHARED liboathuri/urigen.c )
@@ -49,15 +54,16 @@ SET_TARGET_PROPERTIES( oathuri-lib PROPERTIES
                        SOVERSION 1
                        PUBLIC_HEADER liboathuri/oathuri.h )
 
+TARGET_LINK_LIBRARIES( oathuri-lib PUBLIC ${CURL_LIBRARIES} )
+
 INSTALL(TARGETS oathuri-lib DESTINATION lib)
 INSTALL(FILES liboathuri/oathuri.h DESTINATION include)
+
 
 ## CLI target
 ADD_EXECUTABLE ( oathuri-bin oathuri/oathuri.c )
 
 SET_TARGET_PROPERTIES( oathuri-bin PROPERTIES OUTPUT_NAME oathuri )
-
-INCLUDE_DIRECTORIES ( liboathuri )
 
 TARGET_LINK_LIBRARIES ( oathuri-bin PUBLIC oathuri-lib )
 

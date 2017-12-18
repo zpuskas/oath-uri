@@ -29,6 +29,15 @@ extern "C"
 # endif
 
 /**
+ * OATHURI_MAX_LEN
+ *
+ * Preprocessor symbol with an integer value. Defines the maximum allowed
+ * lenght for the resulting URI, including the terminating zero. The value
+ * is the maximum number of bytes in QR code + 1.
+ */
+#define OATHURI_MAX_LEN 2954
+
+/**
  * oathuri_rc:
  * @OATHURI_OK: Successful return
  * @OATHURI_NULL_PARAMETER: Empty parameter was passed to a function
@@ -39,6 +48,7 @@ typedef enum
     OATHURI_OK = 0,
     OATHURI_NULL_PARAMETER = -1,
     OATHURI_INVALID_DIGITS = -2,
+    OATHURI_CURL_FAILURE = -3,
 } oathuri_rc;
 
 /**
