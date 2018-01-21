@@ -155,6 +155,7 @@ oathuri_totp_generate(const char* secret,
             oathuri_hash algorithm,
             char* key_uri)
 {
+    char buffer[4096] = {0};
     char* pos = NULL;
     CURL *curl = NULL;
     char* encoded_data = NULL;
@@ -180,8 +181,9 @@ oathuri_totp_generate(const char* secret,
     }
 
     /* Construct the URI */
+    pos = buffer;
     /* First create the protocol header */
-    pos = stpncpy(key_uri, OATHURI_PROTOCOL, sizeof(OATHURI_PROTOCOL));
+    pos = stpncpy(pos, OATHURI_PROTOCOL, sizeof(OATHURI_PROTOCOL));
     pos = stpncpy(pos, OATHURI_TYPE_TOTP, sizeof(OATHURI_TYPE_TOTP));
 
     /* Add LABEL with issuer for backward compatibility */
@@ -240,6 +242,12 @@ oathuri_totp_generate(const char* secret,
     }
     *pos++ = '\0';
 
+    if (strlen(buffer) > OATHURI_MAX_LEN) {
+        exit_code = OATHURI_URI_TOO_LONG;
+        goto exit;
+    }
+    strcpy(key_uri, buffer);
+
 exit:
     curl_easy_cleanup(curl);
     return exit_code;
@@ -280,6 +288,7 @@ oathuri_hotp_generate(const char* secret,
             oathuri_hash algorithm,
             char* key_uri)
 {
+    char buffer[4096] = {0};
     char* pos = NULL;
     CURL *curl = NULL;
     char* encoded_data = NULL;
@@ -305,8 +314,9 @@ oathuri_hotp_generate(const char* secret,
     }
 
     /* Construct the URI */
+    pos = buffer;
     /* First create the protocol header */
-    pos = stpncpy(key_uri, OATHURI_PROTOCOL, sizeof(OATHURI_PROTOCOL));
+    pos = stpncpy(pos, OATHURI_PROTOCOL, sizeof(OATHURI_PROTOCOL));
     pos = stpncpy(pos, OATHURI_TYPE_HOTP, sizeof(OATHURI_TYPE_TOTP));
 
     /* Add LABEL with issuer for backward compatibility */
@@ -364,6 +374,12 @@ oathuri_hotp_generate(const char* secret,
         pos = stpncpy(pos, digit_string, sizeof(digit_string));
     }
     *pos++ = '\0';
+
+    if (strlen(buffer) > OATHURI_MAX_LEN) {
+        exit_code = OATHURI_URI_TOO_LONG;
+        goto exit;
+    }
+    strcpy(key_uri, buffer);
 
 exit:
     curl_easy_cleanup(curl);
