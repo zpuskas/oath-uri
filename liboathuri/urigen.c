@@ -92,7 +92,7 @@
  *
  * ### Period
  *
- * OPTIONAL if `type` is `totp`: period=<int>
+ * OPTIONAL if `type` is `totp`: period=<unit64_t>
  *
  * Tells how long an OTP is valid in seconds. Default is 30.
  *
@@ -101,9 +101,13 @@
 /* URI protocol prefix */
 static const char OATHURI_PROTOCOL[] = "otpauth://";
 
-/* Type string definitions for different OPT key types */
-static const char OATHURI_TYPE_TOTP[] = "totp/";
-static const char OATHURI_TYPE_HOTP[] = "hotp/";
+/* Type and representation string definitions for different OTP key types */
+typedef enum
+{
+    OATHURI_TOTP = 0,
+    OATHURI_HOTP = 1,
+} oathuri_otp_type;
+static const char OATHURI_TYPE[2][6] =  {{"totp/"}, {"hotp/"}};
 
 /* Key parameter string definitions */
 static const char OATHURI_PARAM_SECRET[] = "secret=";
@@ -111,10 +115,21 @@ static const char OATHURI_PARAM_ISSUER[] = "issuer=";
 static const char OATHURI_PARAM_ALGO[] = "algorithm=";
 static const char OATHURI_PARAM_DIGITS[] = "digits=";
 static const char OATHURI_PARAM_COUNTER[] = "counter=";
-static const char OATHURI_PARAM_PERIOD[] = "preiod=";
+static const char OATHURI_PARAM_PERIOD[] = "period=";
 
 /* Algorithms, can be addressed with `oathuri_hash` */
 static const char* OATHURI_HASH[] = { "SHA1", "SHA256", "SHA512" };
+
+/* Local function to actually build different URIs */
+static int
+oathuri_construct(oathuri_otp_type type,
+            const char* secret,
+            const char* account_name,
+            const char* issuer,
+            unsigned digits,
+            uint64_t moving_factor,
+            oathuri_hash algorithm,
+            char* key_uri);
 
 /**
  * oathuri_totp_generate:
@@ -124,7 +139,7 @@ static const char* OATHURI_HASH[] = { "SHA1", "SHA256", "SHA512" };
  * @period: time step system parameter (typically 30)
  * @algorithm: Type of algorithm used to produce OTP keys.
  * @key_uri: output buffer, must have room for the entire URI plus zero, but
- *           maximum 4000 characters so it can fit into a QR code
+ *           maximum OATHURI_MAX_LEN characters so it can fit into a QR code
  *
  * Generate a TOTP type otpauth:// URI to be used with soft OTP authenticator
  * initialization (typically smart phone applications via QR code). Key URI's
@@ -151,106 +166,18 @@ oathuri_totp_generate(const char* secret,
             const char* account_name,
             const char* issuer,
             unsigned digits,
-            unsigned period,
+            uint64_t period,
             oathuri_hash algorithm,
             char* key_uri)
 {
-    char buffer[4096] = {0};
-    char* pos = NULL;
-    CURL *curl = NULL;
-    char* encoded_data = NULL;
-    int exit_code = OATHURI_OK;
-
-    /* Account name, issuer and URI buffer are required to be non zero */
-    if (NULL == account_name || NULL == issuer || NULL == key_uri) {
-        return OATHURI_NULL_PARAMETER;
-    }
-
-    /* Unless zero is specified for the default 6 digits, check the value */
-    if (digits && (digits < 6 || digits > 8 )) {
-        return OATHURI_INVALID_DIGITS;
-    }
-
-    /* We need curl to perform URI string encoding */
-    if (curl_global_init(CURL_GLOBAL_ALL)) {
-        return OATHURI_CURL_FAILURE;
-    }
-    curl = curl_easy_init();
-    if(!curl) {
-        return OATHURI_CURL_FAILURE;
-    }
-
-    /* Construct the URI */
-    pos = buffer;
-    /* First create the protocol header */
-    pos = stpncpy(pos, OATHURI_PROTOCOL, sizeof(OATHURI_PROTOCOL));
-    pos = stpncpy(pos, OATHURI_TYPE_TOTP, sizeof(OATHURI_TYPE_TOTP));
-
-    /* Add LABEL with issuer for backward compatibility */
-    encoded_data = curl_easy_escape(curl, issuer, 0);
-    if(!encoded_data) {
-        exit_code = OATHURI_CURL_FAILURE;
-        goto exit;
-    }
-    pos = stpncpy(pos, encoded_data, strlen(encoded_data) + 1);
-    curl_free(encoded_data);
-    *pos++ = ':';   /* issuer/account separator */
-    encoded_data = curl_easy_escape(curl, account_name, 0);
-    if(!encoded_data) {
-        exit_code = OATHURI_CURL_FAILURE;
-        goto exit;
-    }
-    pos = stpncpy(pos, encoded_data, strlen(encoded_data) + 1);
-    curl_free(encoded_data);
-
-    /* Add secret */
-    *pos++ = '?';
-    pos = stpncpy(pos, OATHURI_PARAM_SECRET, sizeof(OATHURI_PARAM_SECRET));
-    pos = stpncpy(pos, secret, strlen(secret) + 1);
-
-    /* Add issuer as it's recommended for newer applications */
-    *pos++ = '&';
-    pos = stpncpy(pos, OATHURI_PARAM_ISSUER, sizeof(OATHURI_PARAM_SECRET));
-    encoded_data = curl_easy_escape(curl, issuer, 0);
-    if(!encoded_data) {
-        exit_code = OATHURI_CURL_FAILURE;
-        goto exit;
-    }
-    pos = stpncpy(pos, encoded_data, strlen(encoded_data) + 1);
-    curl_free(encoded_data);
-
-    if (algorithm) {
-        *pos++ = '&';
-        pos = stpncpy(pos, OATHURI_PARAM_ALGO, sizeof(OATHURI_PARAM_ALGO));
-        pos = stpncpy(pos, OATHURI_HASH[algorithm], strlen(OATHURI_HASH[algorithm]) + 1);
-    }
-
-    if (digits) {
-        char digit_string[2] = {0};
-        snprintf(digit_string, sizeof(digit_string), "%u", digits);
-        *pos++ = '&';
-        pos = stpncpy(pos, OATHURI_PARAM_DIGITS, sizeof(OATHURI_PARAM_DIGITS));
-        pos = stpncpy(pos, digit_string, sizeof(digit_string));
-    }
-
-    if (period) {
-        char period_string[32] = {0};
-        snprintf(period_string, sizeof(period_string), "%u", period);
-        *pos++ = '&';
-        pos = stpncpy(pos, OATHURI_PARAM_PERIOD, sizeof(OATHURI_PARAM_PERIOD));
-        pos = stpncpy(pos, period_string, strlen(period_string) + 1 );
-    }
-    *pos++ = '\0';
-
-    if (strlen(buffer) > OATHURI_MAX_LEN) {
-        exit_code = OATHURI_URI_TOO_LONG;
-        goto exit;
-    }
-    strcpy(key_uri, buffer);
-
-exit:
-    curl_easy_cleanup(curl);
-    return exit_code;
+    return oathuri_construct(OATHURI_TOTP,
+                             secret,
+                             account_name,
+                             issuer,
+                             digits,
+                             period,
+                             algorithm,
+                             key_uri);
 }
 
 /**
@@ -261,7 +188,7 @@ exit:
  * @counter: counter to indicate the next OTP to generate
  * @algorithm: Type of algorithm used to produce OTP keys.
  * @key_uri: output buffer, must have room for the entire URI plus zero, but
- *           maximum 4000 characters so it can fit into a QR code
+ *           maximum OATHURI_MAX_LEN characters so it can fit into a QR code
  *
  * Generate a HOTP type otpauth:// URI to be used with soft OTP authenticator
  * initialization (typically smart phone applications via QR code). Key URI's
@@ -288,19 +215,51 @@ oathuri_hotp_generate(const char* secret,
             oathuri_hash algorithm,
             char* key_uri)
 {
-    char buffer[4096] = {0};
-    char* pos = NULL;
+    return oathuri_construct(OATHURI_HOTP,
+                             secret,
+                             account_name,
+                             issuer,
+                             digits,
+                             counter,
+                             algorithm,
+                             key_uri);
+}
+
+
+/**
+ * oathuri_construct:
+ * @moving_factor is either counter or period, depending on the URI type
+ */
+static int
+oathuri_construct(oathuri_otp_type type,
+            const char* secret,
+            const char* account_name,
+            const char* issuer,
+            unsigned digits,
+            uint64_t moving_factor,
+            oathuri_hash algorithm,
+            char* key_uri)
+{
+    /* Construction buffer. Make sure we have space even if all chars are URL
+     * encoded to some %XX value */
+    char buffer[OATHURI_MAX_LEN * 3] = {0};
+    char* pos = NULL;  /* position in the buffer to insert next param into */
     CURL *curl = NULL;
     char* encoded_data = NULL;
     int exit_code = OATHURI_OK;
 
-    /* Account name, issuer and URI buffer are required to be non zero */
+    /* Account name, issuer and URI buffers are required to be non zero */
     if (NULL == account_name || NULL == issuer || NULL == key_uri) {
         return OATHURI_NULL_PARAMETER;
     }
 
+    /* Account name ans issuer cannot contain colon (:) in them */
+    if (NULL != strchr(account_name, ':') || NULL != strchr(issuer, ':')) {
+        return OATHURI_INVALID_INPUT;
+    }
+
     /* Unless zero is specified for the default 6 digits, check the value */
-    if (digits && (digits < 6 || digits > 8 )) {
+    if (digits != 0 && (digits < 6 || digits > 8)) {
         return OATHURI_INVALID_DIGITS;
     }
 
@@ -313,11 +272,11 @@ oathuri_hotp_generate(const char* secret,
         return OATHURI_CURL_FAILURE;
     }
 
-    /* Construct the URI */
+    /* Start URI construction */
     pos = buffer;
     /* First create the protocol header */
     pos = stpncpy(pos, OATHURI_PROTOCOL, sizeof(OATHURI_PROTOCOL));
-    pos = stpncpy(pos, OATHURI_TYPE_HOTP, sizeof(OATHURI_TYPE_TOTP));
+    pos = stpncpy(pos, OATHURI_TYPE[type], sizeof(OATHURI_TYPE[type]));
 
     /* Add LABEL with issuer for backward compatibility */
     encoded_data = curl_easy_escape(curl, issuer, 0);
@@ -327,7 +286,7 @@ oathuri_hotp_generate(const char* secret,
     }
     pos = stpncpy(pos, encoded_data, strlen(encoded_data) + 1);
     curl_free(encoded_data);
-    *pos++ = ':';   /* issuer/account separator */
+    *pos++ = ':';  /* issuer/account separator */
     encoded_data = curl_easy_escape(curl, account_name, 0);
     if(!encoded_data) {
         exit_code = OATHURI_CURL_FAILURE;
@@ -352,12 +311,19 @@ oathuri_hotp_generate(const char* secret,
     pos = stpncpy(pos, encoded_data, strlen(encoded_data) + 1);
     curl_free(encoded_data);
 
-    {
-        char counter_string[32] = {0};
-        snprintf(counter_string, sizeof(counter_string), "%ld", counter);
+    /* The moving factor is dependent on the type of the OTP  */
+    if (type == OATHURI_HOTP) {
+        char factor_string[32] = {0};
         *pos++ = '&';
         pos = stpncpy(pos, OATHURI_PARAM_COUNTER, sizeof(OATHURI_PARAM_COUNTER));
-        pos = stpncpy(pos, counter_string, strlen(counter_string) + 1);
+        snprintf(factor_string, sizeof(factor_string), "%ld", moving_factor);
+        pos = stpncpy(pos, factor_string, strlen(factor_string) + 1);
+    } else if (type == OATHURI_TOTP && moving_factor != 0) {
+        char factor_string[32] = {0};
+        *pos++ = '&';
+        pos = stpncpy(pos, OATHURI_PARAM_PERIOD, sizeof(OATHURI_PARAM_PERIOD));
+        snprintf(factor_string, sizeof(factor_string), "%ld", moving_factor);
+        pos = stpncpy(pos, factor_string, strlen(factor_string) + 1);
     }
 
     if (algorithm) {

@@ -41,15 +41,19 @@ extern "C"
  * oathuri_rc:
  * @OATHURI_OK: Successful return
  * @OATHURI_NULL_PARAMETER: Empty parameter was passed to a function
+ * @OATHURI_INVALID_INPUT: One of the parameters contains invalid characters
  * @OATHURI_INVALID_DIGITS: Unsupported number of OTP digits
+ * @OATHURI_CURL_FAILURE: Initializing curl or URL encoding via curl has failed
+ * @OATHURI_URI_TOO_LONG: Genereated URI is too long for QR encoding
  */
 typedef enum
 {
     OATHURI_OK = 0,
     OATHURI_NULL_PARAMETER = -1,
-    OATHURI_INVALID_DIGITS = -2,
-    OATHURI_CURL_FAILURE = -3,
-    OATHURI_URI_TOO_LONG = -4,
+    OATHURI_INVALID_INPUT = -2,
+    OATHURI_INVALID_DIGITS = -3,
+    OATHURI_CURL_FAILURE = -4,
+    OATHURI_URI_TOO_LONG = -5,
 } oathuri_rc;
 
 /**
@@ -70,7 +74,7 @@ oathuri_totp_generate(const char* secret,
             const char* account_name,
             const char* issuer,
             unsigned digits,
-            unsigned period,
+            uint64_t period,
             oathuri_hash algorithm,
             char* key_uri);
 
