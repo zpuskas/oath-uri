@@ -17,6 +17,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
+#define _POSIX_C_SOURCE 200809L
 
 #include "oathuri.h"
 
@@ -101,14 +102,6 @@
 /* URI protocol prefix */
 static const char OATHURI_PROTOCOL[] = "otpauth://";
 
-/* Type and representation string definitions for different OTP key types */
-typedef enum
-{
-    OATHURI_TOTP = 0,
-    OATHURI_HOTP = 1,
-} oathuri_otp_type;
-static const char OATHURI_TYPE[2][6] =  {{"totp/"}, {"hotp/"}};
-
 /* Key parameter string definitions */
 static const char OATHURI_PARAM_SECRET[] = "secret=";
 static const char OATHURI_PARAM_ISSUER[] = "issuer=";
@@ -116,9 +109,6 @@ static const char OATHURI_PARAM_ALGO[] = "algorithm=";
 static const char OATHURI_PARAM_DIGITS[] = "digits=";
 static const char OATHURI_PARAM_COUNTER[] = "counter=";
 static const char OATHURI_PARAM_PERIOD[] = "period=";
-
-/* Algorithms, can be addressed with `oathuri_hash` */
-static const char* OATHURI_HASH[] = { "SHA1", "SHA256", "SHA512" };
 
 /* Local function to actually build different URIs */
 static int
@@ -170,7 +160,7 @@ oathuri_totp_generate(const char* secret,
             oathuri_hash algorithm,
             char* key_uri)
 {
-    return oathuri_construct(OATHURI_TOTP,
+    return oathuri_construct(OATHURI_TYPE_TOTP,
                              secret,
                              account_name,
                              issuer,
@@ -215,7 +205,7 @@ oathuri_hotp_generate(const char* secret,
             oathuri_hash algorithm,
             char* key_uri)
 {
-    return oathuri_construct(OATHURI_HOTP,
+    return oathuri_construct(OATHURI_TYPE_HOTP,
                              secret,
                              account_name,
                              issuer,
@@ -243,9 +233,9 @@ oathuri_construct(oathuri_otp_type type,
     /* Construction buffer. Make sure we have space even if all chars are URL
      * encoded to some %XX value */
     char buffer[OATHURI_MAX_LEN * 3] = {0};
-    char* pos = NULL;  /* position in the buffer to insert next param into */
+    char *pos = NULL;  /* position in the buffer to insert next param into */
     CURL *curl = NULL;
-    char* encoded_data = NULL;
+    char *encoded_data = NULL;
     int exit_code = OATHURI_OK;
 
     /* Account name, issuer and URI buffers are required to be non zero */
@@ -276,7 +266,8 @@ oathuri_construct(oathuri_otp_type type,
     pos = buffer;
     /* First create the protocol header */
     pos = stpncpy(pos, OATHURI_PROTOCOL, sizeof(OATHURI_PROTOCOL));
-    pos = stpncpy(pos, OATHURI_TYPE[type], sizeof(OATHURI_TYPE[type]));
+    pos = stpncpy(pos, OATHURI_TYPE_STR[type], sizeof(OATHURI_TYPE_STR[type]));
+    *pos++ = '/';
 
     /* Add LABEL with issuer for backward compatibility */
     encoded_data = curl_easy_escape(curl, issuer, 0);
@@ -312,13 +303,13 @@ oathuri_construct(oathuri_otp_type type,
     curl_free(encoded_data);
 
     /* The moving factor is dependent on the type of the OTP  */
-    if (type == OATHURI_HOTP) {
+    if (type == OATHURI_TYPE_HOTP) {
         char factor_string[32] = {0};
         *pos++ = '&';
         pos = stpncpy(pos, OATHURI_PARAM_COUNTER, sizeof(OATHURI_PARAM_COUNTER));
         snprintf(factor_string, sizeof(factor_string), "%ld", moving_factor);
         pos = stpncpy(pos, factor_string, strlen(factor_string) + 1);
-    } else if (type == OATHURI_TOTP && moving_factor != 0) {
+    } else if (type == OATHURI_TYPE_TOTP && moving_factor != 0) {
         char factor_string[32] = {0};
         *pos++ = '&';
         pos = stpncpy(pos, OATHURI_PARAM_PERIOD, sizeof(OATHURI_PARAM_PERIOD));
@@ -329,7 +320,11 @@ oathuri_construct(oathuri_otp_type type,
     if (algorithm) {
         *pos++ = '&';
         pos = stpncpy(pos, OATHURI_PARAM_ALGO, sizeof(OATHURI_PARAM_ALGO));
-        pos = stpncpy(pos, OATHURI_HASH[algorithm], strlen(OATHURI_HASH[algorithm]) + 1);
+        pos = stpncpy(
+            pos,
+            OATHURI_HASH[algorithm],
+            strlen(OATHURI_HASH[algorithm]) + 1
+        );
     }
 
     if (digits) {

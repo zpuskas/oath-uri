@@ -57,6 +57,24 @@ typedef enum
 } oathuri_rc;
 
 /**
+ * oathuri_otp_type:
+ * @OATHURI_TYPE_TOTP: Time based one time password
+ * @OATHURI_TYPE_HOTP: Hash based one time password
+ */
+typedef enum
+{
+    OATHURI_TYPE_TOTP = 0,
+    OATHURI_TYPE_HOTP = 1,
+} oathuri_otp_type;
+
+/**
+ * OATHURI_TYPE_STR
+ *
+ * String representation of the OTP types. Can be indexed by oathuri_otp_type.
+ */
+const char OATHURI_TYPE_STR[2][5] =  { {"totp"}, {"hotp"} };
+
+/**
  * oathuri_hash:
  * @OATHURI_SHA1: Use the SHA1 algorithm for OTP generation (default).
  * @OATHURI_SHA256: Use the SHA256 algorithm for OTP generation.
@@ -68,6 +86,14 @@ typedef enum
     OATHURI_SHA256 = 1,
     OATHURI_SHA512 = 2,
 } oathuri_hash;
+
+/**
+ * OATHURI_HASH
+ *
+ * String representation of hash algorithms, can be indexed by oathuri_hash.
+ */
+const char* OATHURI_HASH[] = { "SHA1", "SHA256", "SHA512" };
+
 
 extern int
 oathuri_totp_generate(const char* secret,
