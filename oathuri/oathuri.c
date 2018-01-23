@@ -1,6 +1,6 @@
 /**
- *  oathuri.c - command line tool for OATH one-time password key URIs
- *  Copyright (C) 2017  Zoltan Puskas <zoltan@sinustrom.info>
+ *  oathuri.c - command line tool for OATH one-time password key URI generation
+ *  Copyright (C) 2017 Zoltan Puskas <zoltan@sinustrom.info>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,10 +21,10 @@
 #include <errno.h>
 #include <error.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
-#include <sys/stat.h>
 #include <unistd.h>
 
 #include <oathuri.h>
@@ -34,18 +34,21 @@
 /* CLI argument parsing constants and settings for argp library */
 const char* argp_program_version = "oathuri 1.0.0";
 const char* argp_program_bug_address = "bugs@sinustrom.info";
-static char doc[] = "oathuri -- A CLI program for generating OATH token URIs";
+static char doc[] = "oathuri -- Generate OATH OTP key URI for soft tokens";
 static struct argp_option options[] = {
-    { "mode",    'm', "MODE", 0,
+    { "mode", 'm', "MODE", 0,
       "Type of the OATH token: TOTP (default), HOTP", 0 },
-    { "digits",  'd', "DIGITS", 0,
+    { "digits", 'd', "DIGITS", 0,
       "Number of digits for the OTP: 6 (default), 7, 8", 1 },
     { "counter", 'c', "COUNTER", 0,
       "In HOTP mode the state of the moving factor (default: 0)", 2 },
-    { "period",  'p', "PERIOD", 0,
+    { "period", 'p', "PERIOD", 0,
       "In TOTP mode the window of an OTP in seconds (default: 30)", 2 },
     { "hash", 'h', "HASH", 0,
-      "Type of hash algorithm used for the OTP: SHA1 (default), SHA256, SHA512", 3 },
+      "Hash algorithm used for the OTP: SHA1 (default), SHA256, SHA512", 3 },
+    { "null", '0', 0, 0,
+      "Output URI is terminated by a null character instead of a newline. "\
+      "Useful when piping into qrencode.", 4 },
     { 0 }
 };
 static char args_doc[] = "SECRET ACCOUNT ISSUER";
@@ -58,6 +61,7 @@ struct arguments
    uint64_t moving_factor;
    oathuri_hash hash;
    oathuri_otp_type type;
+   bool null_terminated;
 };
 
 /* Function called by argp to parse a single option */
@@ -69,7 +73,8 @@ parse_opt (int key, char *arg, struct argp_state *state)
     switch (key)
     {
         case 'm':
-            /* Mode can only be one of: [HTOP, TOTP]. Input is case insensitive. */
+            /* Mode can only be one of: [HTOP, TOTP].
+               Input is case insensitive. */
             if (!strcasecmp(arg, OATHURI_TYPE_STR[OATHURI_TYPE_TOTP])) {
                 arguments->type = OATHURI_TYPE_TOTP;
             } else if (!strcasecmp(arg, OATHURI_TYPE_STR[OATHURI_TYPE_HOTP])) {
@@ -105,6 +110,8 @@ parse_opt (int key, char *arg, struct argp_state *state)
             }
             break;
         case 'h':
+            /* Hash algorithm can be only one of: [SHA1, SHA256, SHA512].
+               Input is case insensitive */
             if (!strcasecmp(arg, OATHURI_HASH[OATHURI_SHA1])) {
                 arguments->hash = OATHURI_SHA1;
             } else if (!strcasecmp(arg, OATHURI_HASH[OATHURI_SHA256])) {
@@ -116,6 +123,9 @@ parse_opt (int key, char *arg, struct argp_state *state)
                 argp_usage(state);
                 return EINVAL;
             }
+            break;
+        case '0':
+            arguments->null_terminated = true;
             break;
         case ARGP_KEY_ARG:
             if (state->arg_num >= MANDATORY_ARGS) {
@@ -129,8 +139,8 @@ parse_opt (int key, char *arg, struct argp_state *state)
             }
             break;
         case ARGP_KEY_NO_ARGS:
-              argp_usage(state);
-              break;
+            argp_usage(state);
+            break;
         default:
             return ARGP_ERR_UNKNOWN;
     }
@@ -142,14 +152,14 @@ main(int argc, char** argv)
 {
     struct arguments arguments;
     struct argp argp = { options, parse_opt, args_doc, doc, NULL, NULL, NULL };
-    struct stat stats;
     char buffer[OATHURI_MAX_LEN] = {0};
-    int output = 0;
     int ret = 0;
 
+    /* Zeroing out arguments also sets the accepted default values */
     memset((void*)&arguments, 0, sizeof(struct arguments));
     argp_parse(&argp, argc, argv, 0, 0, &arguments);
 
+    /* Call into URI generation library */
     switch (arguments.type) {
         case OATHURI_TYPE_TOTP:
             ret = oathuri_totp_generate(
@@ -178,21 +188,14 @@ main(int argc, char** argv)
             break;
     }
 
+    /* Inputs are only partially sanitized, so check result from generator */
     if (ret) {
         error(ret, 0, "Failed to generate OATH URI");
     }
 
-    /* Print URI */
+    /* Print generated URI */
     printf("%s", buffer);
-
-    /* Do not print newline when piped!
-     * (e.g. qrencode will also encode newline, which makes the URI invalid) */
-    output = fileno(stdout);
-    errno = 0;
-    if (fstat(output, &stats)) {
-        error(errno, 0, "fstat failed");
-    }
-    if (isatty(output) || !S_ISFIFO(stats.st_mode)) {
+    if(!arguments.null_terminated) {
         printf("%s", "\n");
     }
 

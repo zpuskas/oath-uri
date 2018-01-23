@@ -21,7 +21,6 @@
 
 #include "oathuri.h"
 
-#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -231,7 +230,7 @@ oathuri_construct(oathuri_otp_type type,
             char* key_uri)
 {
     /* Construction buffer. Make sure we have space even if all chars are URL
-     * encoded to some %XX value */
+       encoded to some %XX value */
     char buffer[OATHURI_MAX_LEN * 3] = {0};
     char *pos = NULL;  /* position in the buffer to insert next param into */
     CURL *curl = NULL;

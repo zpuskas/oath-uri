@@ -1,5 +1,5 @@
 /*
- * oathrui.h - header file for liboathuri
+ * oathuri.h - header file for liboathuri
  * Copyright (C) 2017 Zoltan Puskas <zoltan@sinustrom.info>
  *
  * This library is free software; you can redistribute it and/or
