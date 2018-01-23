@@ -1,0 +1,54 @@
+.TH OATHURI "1" "January 2018" "oathuri 1.0.0" "User Commands"
+.SH NAME
+oathuri \- Generate OATH OTP key URI for soft tokens
+.SH SYNOPSIS
+.B oathuri
+[\fI\,OPTION\/\fR...] \fI\,SECRET ACCOUNT ISSUER\/\fR
+.SH DESCRIPTION
+Generates an OATH OTP key URI for initializing two factor authentication
+applications, also known as soft tokens.
+.SH OPTIONS
+\fB\-m\fR, \fB\-\-mode\fR=\fI\,MODE\/\fR
+Type of the OATH token: TOTP (default), HOTP
+.TP
+\fB\-d\fR, \fB\-\-digits\fR=\fI\,DIGITS\/\fR
+Number of digits for the OTP: 6 (default), 7, 8
+.TP
+\fB\-c\fR, \fB\-\-counter\fR=\fI\,COUNTER\/\fR
+In HOTP mode the state of the moving factor (default: 0)
+.TP
+\fB\-p\fR, \fB\-\-period\fR=\fI\,PERIOD\/\fR
+In TOTP mode the window of an OTP in seconds (default: 30)
+.TP
+\fB\-h\fR, \fB\-\-hash\fR=\fI\,HASH\/\fR
+Type of hash algorithm used for the OTP: SHA1 (default), SHA256, SHA512
+.TP
+\fB\-0\fR, \fB\-\-null\fR
+Output URI is terminated by a null character instead of a newline. Use when
+piping into \fBqrencode\fR to avoid unrecognizeable URI QR codes. 
+.TP
+\fB\-?\fR, \fB\-\-help\fR
+Give this help list
+.TP
+\fB\-\-usage\fR
+Give a short usage message
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+Print program version
+.SH "EXIT STATUS"
+\fBoathuri\fR exits with 0 status if creating URI was successful, and with
+non\-zero status in case of errors. In case of errors no URI is printed.
+.SH "SEE ALSO"
+\fBqrencode\fR(1), \fBoathtool\fR(1)
+.SH AUTHOR
+Written by Zoltan Puskas.
+.SH "REPORTING BUGS"
+Report bugs by email to <bugs@sinustrom.info>, or open an issue over the web at
+<https://github.com/zpuskas/oath-uri/issues>.
+.SH RESOURCES
+You can find more information and usage examples on the project's website at
+<https://sinustrom.info/projects/oath-uri/>.
+.SH LICENSING
+.nf 
+GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
+.fi
