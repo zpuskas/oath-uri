@@ -1,0 +1,65 @@
+.TH "oathuri_totp_generate" 3 "1.0.0" "liboathuri" "liboathuri"
+.SH NAME
+oathuri_totp_generate, oathuri_hotp_generate \- OATH OTP key URI generation
+.SH SYNOPSIS
+.nf
+.B #include <oathuri.h>
+.sp
+.BI "int oathuri_totp_generate(const char * " secret ", const char * " account_name ", const char * " issuer ", unsigned " digits ", uint64_t " period ", oathuri_hash " algorithm ", char * " key_uri ");"
+.BI "int oathuri_hotp_generate(const char * " secret ", const char * " account_name ", const char * " issuer ", unsigned " digits ", uint64_t " counter ", oathuri_hash " algorithm ", char * " key_uri ");"
+.SH "DESCRIPTION"
+The functions of the oathuri library generate a one\-time\-password (OTP) key
+URI string to be used by authenticator applications for initialization via QR
+code.
+
+\fBoathuri_totp_generate\fR() produces an URI for the time\-variant TOTP
+algorithm described in RFC 6238, while \fBoathuri_hotp_generate\fR() produces
+an URI for the HMAC\-variant HOTP algorithm described in RFC 4226.
+
+\fIsecret\fR is the shared secret string typically encoded in Base32 according
+to RFC 3548. The padding specified in RFC 3548 section 2.2 is not required and
+should be omitted. Must be NULL terminated.
+
+\fIaccount_name\fR is the owner of the account (typically an email address) on
+the service owned by the \fIissuer\fR. These are usually shown in the
+authenticator applications to identify the key. Neither of them can contain a
+colon (:). These values will be URL-encoded according to RFC 3986. Both must be
+NULL terminated.
+
+\fIdigits\fP determine the length of the generated OTP. Currently only values
+6, 7, and 8 are supported.
+
+The parameter \fIperiod\fP describes how long the time window for each
+OTP is. The recommended value is 30 seconds, and you can use the value 0 to
+indicate this (only for \fBoathuri_totp_generate\fR()).
+
+The parameter \fIcounter\fP is the moving factor indicating the current 
+OTP to generate (only for \fBoathuri_hotp_generate\fR()).
+
+\fIalgorithm\fR determines the type of hasing used during OTP generation. The
+recommended default is \fBOATHURI_SHA1\fR but \fBOATHURI_SHA256\fR and
+\fBOATHURI_SHA512\fR are also supported. 0 can be used to indicate the default.
+
+The generated URI is stored in the \fIkey_uri\fR buffer, which must have room
+for the entire encoded URI plus one for the terminating NULL. The maximum size
+of the URI will not exceed \fBOATHURI_MAX_LEN\fR. In case of an error, the
+buffer is left unmodified.
+
+.SH "RETURN VALUE"
+On success, \fBOATHURI_OK\fP (zero) is returned, otherwise a negative error
+code is returned.
+.SH "SINCE"
+1.0.0
+.SH AUTHOR
+Written by Zoltan Puskas.
+.SH "REPORTING BUGS"
+Report bugs by email to <bugs@sinustrom.info>, or open an issue over the web at
+<https://github.com/zpuskas/oath-uri/issues>.
+.SH RESOURCES
+You can find more information and usage examples on the project's website at
+<https://sinustrom.info/projects/oath-uri/>.
+
+Read up on the key URI format at
+<https://github.com/google/google-authenticator/wiki/Key-Uri-Format>. 
+.SH LICENSING
+GNU LGPL version 2.1 or later <https://gnu.org/licenses/lgpl.html>.
