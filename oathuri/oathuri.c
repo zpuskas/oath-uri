@@ -33,7 +33,9 @@
 
 /* CLI argument parsing constants and settings for argp library */
 const char* argp_program_version = "oathuri 1.0.0";
-const char* argp_program_bug_address = "bugs@sinustrom.info";
+const char* argp_program_bug_address = \
+    "<bugs@sinustrom.info> by email or " \
+    "via web at <https://github.com/zpuskas/oath-uri/issues>";
 static char doc[] = "oathuri -- Generate OATH OTP key URI for soft tokens";
 static struct argp_option options[] = {
     { "mode", 'm', "MODE", 0,
