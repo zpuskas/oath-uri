@@ -41,7 +41,7 @@ ENDIF(NOT CMAKE_BUILD_TYPE)
 OPTION( OATHURI_CLI "Build command line interface" ON )
 
 ## Compiler settings
-FIND_PACKAGE( CURL REQUIRED )
+FIND_PACKAGE( CURL 7.15.4 REQUIRED )
 
 # Add -Werror once implementation is beyond skeleton phase
 ADD_DEFINITIONS( -std=c99 -pedantic -fsigned-char -freg-struct-return
