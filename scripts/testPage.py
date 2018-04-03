@@ -50,18 +50,35 @@ HTML_TEMPLATE = """
 <html>
 <head>
   <title>oathuri - OATH Soft token test page</title>
+  <meta charset="UTF-8">
+  <meta name="author" content="Zoltan Puskas">
+  <meta name="description" content="OATH two-factor authenticator application test page">
+  <meta name="keywords" content="oathuri, OATH, OATH-URI, two-factor, authentication, QR code, test">
+  <style>
+    .column-left{{ float: left; width: 33%; text-align: center }}
+    .column-right{{ float: right; width: 33%; text-align: center }}
+    .column-center{{ display: inline-block; width: 33%; text-align: center }}
+  </style>
 </head>
 <body>
-  <center>
+  <div class="container">
     {content}
-  </center>
+  </div>
 </body>
 </html>
 """
 
+# Column number to DIV style map
+COL2DIV = {
+    0: 'column-left',
+    1: 'column-center',
+    2: 'column-right',
+}
+
 def main(argv):
     html_content = []
     html_content.append('<h1>oathuri - OATH soft token test inputs</h1>')
+    html_content.append('<h3>Captions: [Type]-[Hash]-[OTP lenght]-[Time window/Counter]</h3>')
 
     # Clean any previous output and create a new directory for the test page
     output_path = os.path.join(os.getcwd(), 'oath_test_page')
@@ -81,8 +98,13 @@ def main(argv):
         log.error('"oathuri" or "qrencode" were not found, cannot generate!')
         sys.exit(-1)
 
-    # Generate output
     cnt = 0
+    columns = {
+        0: [],
+        1: [],
+        2: [],
+    }
+    # Generate column content
     for mode, algo, factor, digit in TEST_CASES:
         # Get uri string to encode, name each account different per test case
         # for easy identification in apps
@@ -103,14 +125,20 @@ def main(argv):
         png = '{}.png'.format(account)
         sh.qrencode('-s', '5', '-o', os.path.join(output_path, png), uri)
 
-        # Add the test case into the html file
-        cnt += 1
-        html_content.append(
+        # Add the test case into a column file
+        columns[cnt % 3].append(
             '<figure>'
             ' <img src="{}" />'
-            ' <figcaption>{}.) {}</figcaption>'
-            '</figure>'.format(png, cnt, account)
+            ' <figcaption>{}</figcaption>'
+            '</figure>'.format(png, account)
         )
+        cnt += 1
+
+    # Append column data into HTML
+    for col, figures in columns.items():
+        html_content.append('<div class={}>'.format(COL2DIV[col]))
+        html_content.append('\n'.join(figures))
+        html_content.append('</div>')
 
     # Save content
     with open(os.path.join(output_path, 'index.html'), 'w') as html_file:
