@@ -1,7 +1,8 @@
 # oath-uri
 
-oath-uri provides a library and CLI tool to generate OATH OTP key sharing URI
-for soft tokens.
+**oath-uri** is an open source C/C++ library and command line tool to generate
+OATH TOTP/HOTP key sharing URI for soft tokens, also known as one-time password
+authentication applications.
 
 When setting up two-factor authentication a secret must be shared with the user
 to set up their soft token (typically a smartphone authenticator app). This
