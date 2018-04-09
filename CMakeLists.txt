@@ -21,7 +21,7 @@ PROJECT(
     oath-uri
     LANGUAGES C
     VERSION 1.0.0
-    DESCRIPTION "Oath Key URI generator library and CLI"
+    DESCRIPTION "OATH Key URI generator library and CLI"
 )
 
 ## CMake settings
@@ -35,6 +35,11 @@ SET( CMAKE_C_FLAGS_DEBUG "-g -ggdb" )
 IF(NOT CMAKE_BUILD_TYPE)
     SET( CMAKE_BUILD_TYPE "Release" )
 ENDIF(NOT CMAKE_BUILD_TYPE)
+
+# Allow for overriding default lib installation path (needed on multiarch)
+if(NOT DEFINED LIB_INSTALL_DIR)
+  set(LIB_INSTALL_DIR lib)
+endif()
 
 
 ## Feature switches
@@ -64,7 +69,7 @@ TARGET_LINK_LIBRARIES( oathuri-lib PUBLIC ${CURL_LIBRARIES} )
 
 INSTALL(
     TARGETS oathuri-lib
-    LIBRARY DESTINATION lib
+    LIBRARY DESTINATION ${LIB_INSTALL_DIR}
     PUBLIC_HEADER DESTINATION include
 )
 INSTALL(

@@ -1,0 +1,8 @@
+oath-uri - Changelog
+
+Version 1.0.0 (2018.04.08.)
+---------------------------
+
+* Inital public release
+* liboathuri implements full support for Google Authenticator key URI format
+* oathuri CLI implements generating URI based on user input
