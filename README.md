@@ -13,11 +13,11 @@ The `oathuri` command line tool is intended to be used in tandem with
 [qrencode](https://fukuchi.org/works/qrencode/) to provide an easy way to
 generate authenticator application key sharing URIs and associated QR codes.
 Find out how to use it by reading the
-[oathuri(1)](https://sinustrom.info/projects/oath-uri/man/1/oathuri/) man page.
+[oathuri(1)](https://sinustrom.info/man/1/oathuri/) man page.
 
 `liboathuri` is used under the hood for this and it's also available to be used
 by your C/C++ software. To learn the API read the
-[oathuri.h(3)](https://sinustrom.info/projects/oath-uri/man/3/oathuri_h/) man page.
+[oathuri.h(3)](https://sinustrom.info/man/3/oathuri_h/) man page.
 
 The code is made available in the hopes of making two-factor authentication
 available to wider audiences in a more user friendly (plus yet another) way and
@@ -62,6 +62,6 @@ $ make install
 
 ## License and Copyright
 
-Copyright (C) 2017-2018 Zoltan Puskas  
+Copyright (C) 2017-2020 Zoltan Puskas  
 The library is licensed under GNU LGPLv2.1 or later  
 The command line tool is licensed under GNU GPLv3 or later
